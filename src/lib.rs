@@ -1,13 +1,9 @@
-use device_query::{DeviceQuery, DeviceState, Keycode};
-use rdev::{listen, Event, EventType};
+use multiinput::*;
 use std::{sync::mpsc, thread};
 
 pub struct Launchpad {
     conn_out: midir::MidiOutputConnection,
-    // control_tx: mpsc::Sender<bool>,
-    events_rx: mpsc::Receiver<ControlEvent>
-}
-struct InputHandler {
+    events_rx: mpsc::Receiver<ControlEvent>,
 }
 #[derive(Debug, PartialEq)]
 pub enum ControlEvent {
@@ -18,7 +14,8 @@ pub enum ControlEvent {
     MoveUp,
     MoveDown,
     DropBlock,
-    SpeedChange(u8)
+    SpeedChange(u8),
+    ExitGame
 }
 /// Represents a pad on the Launchpad
 /// Provides methods to convert to and from a note byte
@@ -30,13 +27,13 @@ impl Pad {
     /// Returns the MIDI note corresponding to the pad.
     /// ```
     /// # use lp_tetris::Pad;
-    /// assert_eq!(Pad { x: 0, y: 0 }.note(), 0x51);
+    /// assert_eq!(Pad { x: 0, y: 0 }.note(), 11);
     ///
-    /// assert_eq!(Pad { x: 7, y: 0 }.note(), 0x58);
+    /// assert_eq!(Pad { x: 7, y: 0 }.note(), 18);
     ///
-    /// assert_eq!(Pad { x: 0, y: 7 }.note(), 0x0B);
+    /// assert_eq!(Pad { x: 0, y: 7 }.note(), 81);
     ///
-    /// assert_eq!(Pad { x: 7, y: 7 }.note(), 0x12);
+    /// assert_eq!(Pad { x: 7, y: 7 }.note(), 88);
     /// ```
     /// This is the inverse of ::from_note
     /// ```
@@ -50,13 +47,13 @@ impl Pad {
     /// Returns a Pad corresponding to the given MIDI note.
     /// ```
     /// # use lp_tetris::Pad;
-    /// assert_eq!(Pad { x: 0, y: 0 }, Pad::from_note(0x51));
+    /// assert_eq!(Pad { x: 0, y: 0 }, Pad::from_note(11));
     ///
-    /// assert_eq!(Pad { x: 7, y: 0 }, Pad::from_note(0x58));
+    /// assert_eq!(Pad { x: 7, y: 0 }, Pad::from_note(18));
     ///
-    /// assert_eq!(Pad { x: 0, y: 7 }, Pad::from_note(0x0B));
+    /// assert_eq!(Pad { x: 0, y: 7 }, Pad::from_note(81));
     ///
-    /// assert_eq!(Pad { x: 7, y: 7 }, Pad::from_note(0x12));
+    /// assert_eq!(Pad { x: 7, y: 7 }, Pad::from_note(88));
     /// ```
     /// This is the inverse of .note
     /// ```
@@ -68,7 +65,7 @@ impl Pad {
         let ones = note % 10;
         let tens = (note - ones)/10;
         let x = ones - 1;
-        let y = 8 - tens;
+        let y = tens - 1;
         Pad {x, y}
     }
 }
@@ -90,24 +87,27 @@ impl Launchpad {
         
         let conn_out = midi_out.connect(out_port, "").expect("Failed to open connection");
         // let (c_tx, c_rx) = mpsc::channel();
-        let (e_tx, e_rx) = mpsc::channel();
+        let (events_tx, events_rx) = mpsc::channel();
+        let mut manager = RawInputManager::new().unwrap();
+        manager.register_devices(DeviceType::Keyboards);
         thread::spawn(move || {
-            listen(|e| {
-                println!("My callback {:?}", e);
-                match event.name
-            })
+            loop {
+                if let Some(event) = manager.get_event() {
+                    if let Some(msg) = input_map(event) {
+                        events_tx.send(msg).ok();
+                    }
+                }
+            }
         });
         Launchpad {
             conn_out,
-            // control_tx: c_tx,
-            events_rx: e_rx
+            events_rx
         }
     }
     /// Closes the underlying midi connection to the launchpad
     pub fn close(self) {
         self.conn_out.close();
     }
-    
     // pub fn poll_inputs(&mut self) -> ControlEvent {
     //     match self.input_buffer.try_recv() {
     //         Ok(event) => event,
@@ -146,72 +146,33 @@ impl Launchpad {
 }
 // Input defs
 impl Launchpad {
-    /// Given a vector of keycodes, returns a vector of ControlEvents
-    /// This is the method to modify if you want to change/add input mappings.
-    ///
-    /// ```
-    /// # use lp_tetris::{Launchpad, ControlEvent};
-    /// let keys = vec![device_query::Keycode::A, device_query::Keycode::Space];
-    /// assert_eq!(Launchpad::dekeycode(keys), vec![ControlEvent::RotateLeft, ControlEvent::DropBlock]);
-    /// ```
-    ///
-    pub fn dekeycode(keys: Vec<Keycode>) -> Vec<ControlEvent> {
-        keys.iter().filter_map(|key| {
-            match key {
-                Keycode::A => Some(ControlEvent::RotateLeft),
-                Keycode::D => Some(ControlEvent::RotateRight),
-                Keycode::Left => Some(ControlEvent::MoveLeft),
-                Keycode::Right => Some(ControlEvent::MoveRight),
-                Keycode::Up => Some(ControlEvent::MoveUp),
-                Keycode::Down => Some(ControlEvent::MoveDown),
-                Keycode::Space => Some(ControlEvent::DropBlock),
-                Keycode::Key1 => Some(ControlEvent::SpeedChange(0)),
-                Keycode::Key2 => Some(ControlEvent::SpeedChange(1)),
-                Keycode::Key3 => Some(ControlEvent::SpeedChange(2)),
-                Keycode::Key4 => Some(ControlEvent::SpeedChange(3)),
-                Keycode::Key5 => Some(ControlEvent::SpeedChange(4)),
-                Keycode::Key6 => Some(ControlEvent::SpeedChange(5)),
-                Keycode::Key7 => Some(ControlEvent::SpeedChange(6)),
-                Keycode::Key8 => Some(ControlEvent::SpeedChange(7)),
-                _ => None
-            }
-        }).collect()
-    }
-    pub fn poll_input(&mut self) -> Vec<ControlEvent> {
-        let device_state = DeviceState::new();
-        let keys = device_state.get_keys();
-        // self.input_buffer = keys;
-        Launchpad::dekeycode(keys)
+    /// Get next ControlEvent
+    pub fn poll_input(&self) -> Option<ControlEvent> {
+        self.events_rx.try_recv().ok()
     }
 }
 /// Given an rdev::EventType, return a ControlEvent.
 /// This is the method to modify if you want to change/add input mappings.
 ///
-/// ```
-/// # use lp_tetris::{Launchpad, ControlEvent};
-/// let keys = vec![device_query::Keycode::A, device_query::Keycode::Space];
-/// assert_eq!(Launchpad::dekeycode(keys), vec![ControlEvent::RotateLeft, ControlEvent::DropBlock]);
-/// ```
-///
-pub fn dekeycode(event: EventType) -> Vec<ControlEvent> {
-    keys.iter().filter_map(|key| {
-        match key {
-            Keycode::A => Some(ControlEvent::RotateLeft),
-            Keycode::D => Some(ControlEvent::RotateRight),
-            Keycode::Left => Some(ControlEvent::MoveLeft),
-            Keycode::Right => Some(ControlEvent::MoveRight),
-            Keycode::Up => Some(ControlEvent::MoveUp),
-            Keycode::Down => Some(ControlEvent::MoveDown),
-            Keycode::Space => Some(ControlEvent::DropBlock),
-            Keycode::Key1 => Some(ControlEvent::SpeedChange(0)),
-            Keycode::Key2 => Some(ControlEvent::SpeedChange(1)),
-            Keycode::Key3 => Some(ControlEvent::SpeedChange(2)),
-            Keycode::Key4 => Some(ControlEvent::SpeedChange(3)),
-            Keycode::Key5 => Some(ControlEvent::SpeedChange(4)),
-            Keycode::Key6 => Some(ControlEvent::SpeedChange(5)),
-            Keycode::Key7 => Some(ControlEvent::SpeedChange(6)),
-            Keycode::Key8 => Some(ControlEvent::SpeedChange(7)),
-            _ => None
-        }
-    }).collect()
+pub fn input_map(event: RawEvent) -> Option<ControlEvent> {
+    match event {
+        RawEvent::KeyboardEvent(_, KeyId::A, State::Pressed) => Some(ControlEvent::RotateLeft),
+        RawEvent::KeyboardEvent(_, KeyId::D, State::Pressed) => Some(ControlEvent::RotateRight),
+        RawEvent::KeyboardEvent(_, KeyId::Left, State::Pressed) => Some(ControlEvent::MoveLeft),
+        RawEvent::KeyboardEvent(_, KeyId::Right, State::Pressed) => Some(ControlEvent::MoveRight),
+        RawEvent::KeyboardEvent(_, KeyId::Up, State::Pressed) => Some(ControlEvent::MoveUp),
+        RawEvent::KeyboardEvent(_, KeyId::Down, State::Pressed) => Some(ControlEvent::MoveDown) ,
+        RawEvent::KeyboardEvent(_, KeyId::Space, State::Pressed) => Some(ControlEvent::DropBlock),
+        RawEvent::KeyboardEvent(_, KeyId::One, State::Pressed) => Some(ControlEvent::SpeedChange(0)),
+        RawEvent::KeyboardEvent(_, KeyId::Two, State::Pressed) => Some(ControlEvent::SpeedChange(1)),
+        RawEvent::KeyboardEvent(_, KeyId::Three, State::Pressed) => Some(ControlEvent::SpeedChange(2)),
+        RawEvent::KeyboardEvent(_, KeyId::Four, State::Pressed) => Some(ControlEvent::SpeedChange(3)),
+        RawEvent::KeyboardEvent(_, KeyId::Five, State::Pressed) => Some(ControlEvent::SpeedChange(4)),
+        RawEvent::KeyboardEvent(_, KeyId::Six, State::Pressed) => Some(ControlEvent::SpeedChange(5)),
+        RawEvent::KeyboardEvent(_, KeyId::Seven, State::Pressed) => Some(ControlEvent::SpeedChange(6)),
+        RawEvent::KeyboardEvent(_, KeyId::Eight, State::Pressed) => Some(ControlEvent::SpeedChange(7)),
+        RawEvent::KeyboardEvent(_, KeyId::Nine, State::Pressed) => Some(ControlEvent::SpeedChange(8)),
+        RawEvent::KeyboardEvent(_, KeyId::Backspace, State::Pressed) => Some(ControlEvent::ExitGame),
+        _ => None
+    }
 }

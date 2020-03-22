@@ -15,7 +15,7 @@ pub enum CollisionResult {
     Unobstructed,
     Collides,
     CollidesHBound,
-    AboveRoof
+    // AboveRoof
 }
 #[derive(Debug)]
 pub enum Tetromino {S, J, L, I, T, Z, O}
@@ -41,6 +41,7 @@ pub struct Piece {
     rotation: Rotation
 }
 
+#[allow(unused)]
 impl Piece {
     /// Returns a new piece given a Tetromino
     pub fn new(id: Tetromino) -> Piece {
@@ -184,7 +185,7 @@ impl Board {
         new_matrix
     }
     /// Places a given piece at the given location
-    pub fn place(&mut self, piece: Piece, x: usize, y: usize) {
+    pub fn place(&mut self, piece: &Piece, x: usize, y: usize) {
         self.matrix = self.place_impl(&piece, x, y);
     }
     /// Clones the matrix, adds the given piece to the clone, and returns the clone.
@@ -231,19 +232,52 @@ impl Board {
         let render = piece.render();
         if x + render.num_columns() > 8 {
             CollisionResult::CollidesHBound
-        } else if y.checked_sub(render.num_rows()).unwrap() >= 7 {
-            CollisionResult::AboveRoof
+        // } else if y + render.num_rows() >= 7 {
+        //     CollisionResult::AboveRoof
         } else {
             for iy in 0..render.num_rows() {
                 for ix in 0..render.num_columns() {
-                    if y - iy >= 8 || (x + ix) >= 8 {
+                    if y + iy >= 8 || (x + ix) >= 8 {
                         continue;
-                    } else if *render.get(iy, ix).unwrap() && self.matrix.get(y - iy, x + ix).unwrap() > &0 {
+                    } else if *render.get(render.num_rows() - (iy + 1), ix).unwrap() && *self.matrix.get(y + iy, x + ix).unwrap() > 0 {
+                        println!("Collision at ({}, {}), ({}, {})", y+iy, x+ix, iy, ix);
+                        println!("Block Value: {:?}. Matrix Value: {}.", render.as_rows(), *self.matrix.get(y + iy, x + ix).unwrap());
                         return CollisionResult::Collides
                     }
                 }
             }
             CollisionResult::Unobstructed
+        }
+    }
+    /// Given a rotated piece and its position, attempts a rotation
+    /// BOOKMARK: this is where to go to implement SRS or whatever
+    pub fn try_rotation(&self, piece: &Piece, x: usize, y: usize) -> Option<(usize, usize)> {
+        match self.collides(&piece, x as usize, y as usize) {
+            CollisionResult::Unobstructed => Some((x, y)),
+            // CollisionResult::AboveRoof => Some((x, y)),
+            CollisionResult::CollidesHBound => {
+                for i in 0..piece.render().num_columns() {
+                    match self.collides(&piece, (x - i) as usize, y as usize) {
+                        CollisionResult::Unobstructed => return Some((x - i, y)),
+                        // CollisionResult::AboveRoof => return Some((x - i, y)),
+                        _ => ()
+                    };
+                }
+                None
+            },
+            CollisionResult::Collides => {
+                match self.collides(&piece, x.saturating_add(1) as usize, y as usize) {
+                    CollisionResult::Unobstructed => return Some((x - 1, y)),
+                    // CollisionResult::AboveRoof => return Some((x - 1, y)),
+                    _ => ()
+                };
+                match self.collides(&piece, x.saturating_sub(1) as usize, y as usize) {
+                    CollisionResult::Unobstructed => return Some((x - 1, y)),
+                    // CollisionResult::AboveRoof => return Some((x - 1, y)),
+                    _ => ()
+                };
+                None
+            }
         }
     }
 }
@@ -325,7 +359,7 @@ mod tests {
     fn added_piece() {
         let mut board = super::Board::new();
         let piece = super::Piece::new(super::Tetromino::L);
-        board.place(piece, 0, 2);
+        board.place(&piece, 0, 0);
         println!("{:?}", board);
         assert_eq!(board.column_height(0), 3);
         assert_eq!(board.column_height(1), 1);
@@ -338,9 +372,9 @@ mod tests {
     #[test]
     fn clear_bottom_row() {
         let mut board = super::Board::new();
-        board.place(super::Piece::new(super::Tetromino::L), 0, 2);
-        board.place(super::Piece::new(super::Tetromino::J), 6, 2);
-        board.place(super::Piece::new(super::Tetromino::I).rotated_left(), 2, 0);
+        board.place(&super::Piece::new(super::Tetromino::L), 0, 0);
+        board.place(&super::Piece::new(super::Tetromino::J), 6, 0);
+        board.place(&super::Piece::new(super::Tetromino::I).rotated_left(), 2, 0);
         assert_eq!(board.column_height(0), 3);
         assert_eq!(board.column_height(1), 1);
         assert_eq!(board.column_height(2), 1);
@@ -366,9 +400,9 @@ mod tests {
     #[test]
     fn clear_floating_row() {
         let mut board = super::Board::new();
-        board.place(super::Piece::new(super::Tetromino::L).rotated_left().rotated_left(), 6, 2);
-        board.place(super::Piece::new(super::Tetromino::J).rotated_left().rotated_left(), 0, 2);
-        board.place(super::Piece::new(super::Tetromino::I).rotated_left(), 2, 2);
+        board.place(&super::Piece::new(super::Tetromino::L).rotated_left().rotated_left(), 6, 0);
+        board.place(&super::Piece::new(super::Tetromino::J).rotated_left().rotated_left(), 0, 0);
+        board.place(&super::Piece::new(super::Tetromino::I).rotated_left(), 2, 2);
         assert_eq!(board.column_height(0), 3);
         assert_eq!(board.column_height(1), 3);
         assert_eq!(board.column_height(2), 3);
@@ -403,12 +437,12 @@ mod tests {
         let board = super::Board::new();
         let mut piece = super::Piece::new(super::Tetromino::I).rotated_left();
         assert_eq!(board.collides(&piece, 2, 7), super::CollisionResult::Unobstructed);
-        assert_eq!(board.collides(&piece, 2, 8), super::CollisionResult::AboveRoof);
+        assert_eq!(board.collides(&piece, 2, 8), super::CollisionResult::Unobstructed);
         piece.rotate_left();
         assert_eq!(board.collides(&piece, 2, 7), super::CollisionResult::Unobstructed);
         assert_eq!(board.collides(&piece, 2, 8), super::CollisionResult::Unobstructed);
         assert_eq!(board.collides(&piece, 2, 9), super::CollisionResult::Unobstructed);
         assert_eq!(board.collides(&piece, 2, 10), super::CollisionResult::Unobstructed);
-        assert_eq!(board.collides(&piece, 2, 11), super::CollisionResult::AboveRoof);
+        assert_eq!(board.collides(&piece, 2, 11), super::CollisionResult::Unobstructed);
     }
 }
