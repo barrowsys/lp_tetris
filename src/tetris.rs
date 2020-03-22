@@ -176,7 +176,7 @@ impl Board {
         let render = piece.render();
         for iy in (0..render.num_rows()).rev() {
             for ix in 0..render.num_columns() {
-                match render.get((render.num_rows() - 1) - iy, ix) {
+                match render.get(render.num_rows().saturating_sub(1) - iy, ix) {
                     Some(true) => {new_matrix.set(y + iy, x + ix, piece.color).ok();},
                     _ => ()
                 };
@@ -239,7 +239,7 @@ impl Board {
                 for ix in 0..render.num_columns() {
                     if y + iy >= 8 || (x + ix) >= 8 {
                         continue;
-                    } else if *render.get(render.num_rows() - (iy + 1), ix).unwrap() && *self.matrix.get(y + iy, x + ix).unwrap() > 0 {
+                    } else if *render.get(render.num_rows().saturating_sub(iy + 1), ix).unwrap() && *self.matrix.get(y + iy, x + ix).unwrap() > 0 {
                         println!("Collision at ({}, {}), ({}, {})", y+iy, x+ix, iy, ix);
                         println!("Block Value: {:?}. Matrix Value: {}.", render.as_rows(), *self.matrix.get(y + iy, x + ix).unwrap());
                         return CollisionResult::Collides
@@ -257,9 +257,8 @@ impl Board {
             // CollisionResult::AboveRoof => Some((x, y)),
             CollisionResult::CollidesHBound => {
                 for i in 0..piece.render().num_columns() {
-                    match self.collides(&piece, (x - i) as usize, y as usize) {
-                        CollisionResult::Unobstructed => return Some((x - i, y)),
-                        // CollisionResult::AboveRoof => return Some((x - i, y)),
+                    match self.collides(&piece, x.saturating_sub(i) as usize, y as usize) {
+                        CollisionResult::Unobstructed => return Some((x.saturating_sub(i), y)),
                         _ => ()
                     };
                 }
@@ -267,13 +266,11 @@ impl Board {
             },
             CollisionResult::Collides => {
                 match self.collides(&piece, x.saturating_add(1) as usize, y as usize) {
-                    CollisionResult::Unobstructed => return Some((x - 1, y)),
-                    // CollisionResult::AboveRoof => return Some((x - 1, y)),
+                    CollisionResult::Unobstructed => return Some((x.saturating_sub(i), y)),
                     _ => ()
                 };
                 match self.collides(&piece, x.saturating_sub(1) as usize, y as usize) {
-                    CollisionResult::Unobstructed => return Some((x - 1, y)),
-                    // CollisionResult::AboveRoof => return Some((x - 1, y)),
+                    CollisionResult::Unobstructed => return Some((x.saturating_sub(i), y)),
                     _ => ()
                 };
                 None

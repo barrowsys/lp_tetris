@@ -63,9 +63,9 @@ impl Pad {
     /// ```
     pub fn from_note(note: u8) -> Pad {
         let ones = note % 10;
-        let tens = (note - ones)/10;
-        let x = ones - 1;
-        let y = tens - 1;
+        let tens = (note.saturating_sub(ones))/10;
+        let x = ones.saturating_sub(1);
+        let y = tens.saturating_sub(1);
         Pad {x, y}
     }
 }
