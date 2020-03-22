@@ -9,3 +9,5 @@ edition = "2018"
 [dependencies]
 midir = "0.5.0"
 array2d = "0.2.1"
+device_query = "0.2.3"
+rand = "0.6.0"
