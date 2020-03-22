@@ -3,7 +3,7 @@ use std::time::Duration;
 use array2d::Array2D;
 use lp_tetris::{Launchpad, ControlEvent};
 mod tetris;
-use rand::{distributions::{Distribution, Standard}, Rng};
+use rand::{Rng};
 
 fn run_color(lp: &mut Launchpad, c: u8) {
     for i in 0x29..0x31 {

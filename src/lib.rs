@@ -1,9 +1,13 @@
 use device_query::{DeviceQuery, DeviceState, Keycode};
-use std::time::Instant;
+use rdev::{listen, Event, EventType};
+use std::{sync::mpsc, thread};
 
 pub struct Launchpad {
     conn_out: midir::MidiOutputConnection,
-    // input_buffer: Vec<Keycode>
+    // control_tx: mpsc::Sender<bool>,
+    events_rx: mpsc::Receiver<ControlEvent>
+}
+struct InputHandler {
 }
 #[derive(Debug, PartialEq)]
 pub enum ControlEvent {
@@ -85,8 +89,18 @@ impl Launchpad {
         let out_port = out_port.expect("Couldn't find launchpad!");
         
         let conn_out = midi_out.connect(out_port, "").expect("Failed to open connection");
+        // let (c_tx, c_rx) = mpsc::channel();
+        let (e_tx, e_rx) = mpsc::channel();
+        thread::spawn(move || {
+            listen(|e| {
+                println!("My callback {:?}", e);
+                match event.name
+            })
+        });
         Launchpad {
             conn_out,
+            // control_tx: c_tx,
+            events_rx: e_rx
         }
     }
     /// Closes the underlying midi connection to the launchpad
@@ -169,4 +183,35 @@ impl Launchpad {
         // self.input_buffer = keys;
         Launchpad::dekeycode(keys)
     }
+}
+/// Given an rdev::EventType, return a ControlEvent.
+/// This is the method to modify if you want to change/add input mappings.
+///
+/// ```
+/// # use lp_tetris::{Launchpad, ControlEvent};
+/// let keys = vec![device_query::Keycode::A, device_query::Keycode::Space];
+/// assert_eq!(Launchpad::dekeycode(keys), vec![ControlEvent::RotateLeft, ControlEvent::DropBlock]);
+/// ```
+///
+pub fn dekeycode(event: EventType) -> Vec<ControlEvent> {
+    keys.iter().filter_map(|key| {
+        match key {
+            Keycode::A => Some(ControlEvent::RotateLeft),
+            Keycode::D => Some(ControlEvent::RotateRight),
+            Keycode::Left => Some(ControlEvent::MoveLeft),
+            Keycode::Right => Some(ControlEvent::MoveRight),
+            Keycode::Up => Some(ControlEvent::MoveUp),
+            Keycode::Down => Some(ControlEvent::MoveDown),
+            Keycode::Space => Some(ControlEvent::DropBlock),
+            Keycode::Key1 => Some(ControlEvent::SpeedChange(0)),
+            Keycode::Key2 => Some(ControlEvent::SpeedChange(1)),
+            Keycode::Key3 => Some(ControlEvent::SpeedChange(2)),
+            Keycode::Key4 => Some(ControlEvent::SpeedChange(3)),
+            Keycode::Key5 => Some(ControlEvent::SpeedChange(4)),
+            Keycode::Key6 => Some(ControlEvent::SpeedChange(5)),
+            Keycode::Key7 => Some(ControlEvent::SpeedChange(6)),
+            Keycode::Key8 => Some(ControlEvent::SpeedChange(7)),
+            _ => None
+        }
+    }).collect()
 }
