@@ -3,6 +3,10 @@ name = "lp_tetris"
 version = "0.1.0"
 authors = ["Ezra Barrow <bobbybobson4888@gmail.com>"]
 edition = "2018"
+license = "GPL-2.0-only"
+description = "A tetris clone running on a Novation Launchpad Mk2 MIDI controller"
+repository = "https://github.com/BobbyBobson4888/lp_tetris"
+readme = "README.md"
 
 [dependencies]
 midir = "0.5.0"
