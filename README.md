@@ -6,7 +6,7 @@ i needed a good first project in the lang, and porting this seemed like fun.
 "fun", i've forgotten what that means...
 
 ## Controls
-A/D rotate left/right
-left/right arrows move left/right
-space drops
-backspace ends the process
+A/D rotate left/right  
+left/right arrows move left/right  
+space drops  
+backspace ends the process  
