@@ -266,19 +266,11 @@ impl Board {
             },
             CollisionResult::Collides => {
                 match self.collides(&piece, x.saturating_add(1) as usize, y as usize) {
-<<<<<<< HEAD
                     CollisionResult::Unobstructed => return Some((x.saturating_sub(1), y)),
                     _ => ()
                 };
                 match self.collides(&piece, x.saturating_sub(1) as usize, y as usize) {
                     CollisionResult::Unobstructed => return Some((x.saturating_sub(1), y)),
-=======
-                    CollisionResult::Unobstructed => return Some((x.saturating_sub(i), y)),
-                    _ => ()
-                };
-                match self.collides(&piece, x.saturating_sub(1) as usize, y as usize) {
-                    CollisionResult::Unobstructed => return Some((x.saturating_sub(i), y)),
->>>>>>> f286f2610fbc1f75e891ed91f3a869b3edf6d8bf
                     _ => ()
                 };
                 None
