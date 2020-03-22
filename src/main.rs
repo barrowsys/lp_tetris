@@ -36,10 +36,14 @@ fn main() {
     println!("Connection open!!");
     lp.clear();
     'gameloop: loop{
-        sleep(Duration::from_millis(50));
+        sleep(Duration::from_millis(4));
         tick += 1;
         lp.send_matrix(board.shadow(&current_piece, pos_x, pos_y));
-        if tick % (15 - speed as u32) == 0 || drop_down {
+        let tickrate = match 255u8.checked_sub(speed) {
+            Some(tr) => tr,
+            None => panic!("255u8 - {} is, out of bounds? this shouldn't happen, speed is a u8", speed),
+        };
+        if tick % tickrate as u32 == 0 || drop_down {
             if pos_y == 0 {
                 board.place(&current_piece, pos_x, pos_y);
                 current_piece = tetris::Piece::new(rng.gen());
