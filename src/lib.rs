@@ -15,12 +15,15 @@ pub enum ControlEvent {
     MoveDown,
     DropBlock,
     SpeedChange(u8),
-    ExitGame
+    ExitGame,
 }
 /// Represents a pad on the Launchpad
 /// Provides methods to convert to and from a note byte
 #[derive(Copy, Clone, PartialEq, Debug)]
-pub struct Pad {pub x: u8, pub y: u8}
+pub struct Pad {
+    pub x: u8,
+    pub y: u8,
+}
 
 // Pad impl
 impl Pad {
@@ -63,10 +66,10 @@ impl Pad {
     /// ```
     pub fn from_note(note: u8) -> Pad {
         let ones = note % 10;
-        let tens = (note.saturating_sub(ones))/10;
+        let tens = (note.saturating_sub(ones)) / 10;
         let x = ones.saturating_sub(1);
         let y = tens.saturating_sub(1);
-        Pad {x, y}
+        Pad { x, y }
     }
 }
 // Core defs
@@ -84,24 +87,24 @@ impl Launchpad {
             }
         }
         let out_port = out_port.expect("Couldn't find launchpad!");
-        
-        let conn_out = midi_out.connect(out_port, "").expect("Failed to open connection");
+
+        let conn_out = midi_out
+            .connect(out_port, "")
+            .expect("Failed to open connection");
         // let (c_tx, c_rx) = mpsc::channel();
         let (events_tx, events_rx) = mpsc::channel();
         let mut manager = RawInputManager::new().unwrap();
         manager.register_devices(DeviceType::Keyboards);
-        thread::spawn(move || {
-            loop {
-                if let Some(event) = manager.get_event() {
-                    if let Some(msg) = input_map(event) {
-                        events_tx.send(msg).ok();
-                    }
+        thread::spawn(move || loop {
+            if let Some(event) = manager.get_event() {
+                if let Some(msg) = input_map(event) {
+                    events_tx.send(msg).ok();
                 }
             }
         });
         Launchpad {
             conn_out,
-            events_rx
+            events_rx,
         }
     }
     /// Closes the underlying midi connection to the launchpad
@@ -134,7 +137,7 @@ impl Launchpad {
             let mut msg = Vec::new();
             for y in 0..8 {
                 for x in 0..8 {
-                    let pad = Pad {x, y};
+                    let pad = Pad { x, y };
                     msg.push(pad.note());
                     msg.push(matrix[(y as usize, x as usize)]);
                 }
@@ -161,7 +164,7 @@ pub fn input_map(event: RawEvent) -> Option<ControlEvent> {
         RawEvent::KeyboardEvent(_, KeyId::Left, State::Pressed) => Some(ControlEvent::MoveLeft),
         RawEvent::KeyboardEvent(_, KeyId::Right, State::Pressed) => Some(ControlEvent::MoveRight),
         RawEvent::KeyboardEvent(_, KeyId::Up, State::Pressed) => Some(ControlEvent::MoveUp),
-        RawEvent::KeyboardEvent(_, KeyId::Down, State::Pressed) => Some(ControlEvent::MoveDown) ,
+        RawEvent::KeyboardEvent(_, KeyId::Down, State::Pressed) => Some(ControlEvent::MoveDown),
         RawEvent::KeyboardEvent(_, KeyId::Space, State::Pressed) => Some(ControlEvent::DropBlock),
         // RawEvent::KeyboardEvent(_, KeyId::One, State::Pressed) => Some(ControlEvent::SpeedChange(0)),
         // RawEvent::KeyboardEvent(_, KeyId::Two, State::Pressed) => Some(ControlEvent::SpeedChange(1)),
@@ -172,7 +175,9 @@ pub fn input_map(event: RawEvent) -> Option<ControlEvent> {
         // RawEvent::KeyboardEvent(_, KeyId::Seven, State::Pressed) => Some(ControlEvent::SpeedChange(6)),
         // RawEvent::KeyboardEvent(_, KeyId::Eight, State::Pressed) => Some(ControlEvent::SpeedChange(7)),
         // RawEvent::KeyboardEvent(_, KeyId::Nine, State::Pressed) => Some(ControlEvent::SpeedChange(8)),
-        RawEvent::KeyboardEvent(_, KeyId::Backspace, State::Pressed) => Some(ControlEvent::ExitGame),
-        _ => None
+        RawEvent::KeyboardEvent(_, KeyId::Backspace, State::Pressed) => {
+            Some(ControlEvent::ExitGame)
+        }
+        _ => None,
     }
 }

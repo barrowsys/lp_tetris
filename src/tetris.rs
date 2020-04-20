@@ -1,14 +1,17 @@
 use array2d::Array2D;
+use rand::{
+    distributions::{Distribution, Standard},
+    Rng,
+};
 use std::cmp;
 use std::convert::TryInto;
-use rand::{distributions::{Distribution, Standard}, Rng};
 
 #[derive(Debug)]
 pub enum Rotation {
     Zero,
     HalfPi,
     Pi,
-    OneHalfPi
+    OneHalfPi,
 }
 #[derive(Debug, PartialEq)]
 pub enum CollisionResult {
@@ -18,7 +21,15 @@ pub enum CollisionResult {
     // AboveRoof
 }
 #[derive(Debug)]
-pub enum Tetromino {S, J, L, I, T, Z, O}
+pub enum Tetromino {
+    S,
+    J,
+    L,
+    I,
+    T,
+    Z,
+    O,
+}
 impl Distribution<Tetromino> for Standard {
     /// Implements random selection of tetrominos
     /// This could be replaced, i.e. if there's a Correct(TM) random distribution, implement it here.
@@ -30,7 +41,7 @@ impl Distribution<Tetromino> for Standard {
             3 => Tetromino::I,
             4 => Tetromino::T,
             5 => Tetromino::Z,
-            _ => Tetromino::O
+            _ => Tetromino::O,
         }
     }
 }
@@ -38,7 +49,7 @@ impl Distribution<Tetromino> for Standard {
 pub struct Piece {
     layout: Array2D<bool>,
     pub color: u8,
-    rotation: Rotation
+    rotation: Rotation,
 }
 
 #[allow(unused)]
@@ -47,65 +58,48 @@ impl Piece {
     pub fn new(id: Tetromino) -> Piece {
         match id {
             Tetromino::S => Piece {
-                layout: Array2D::from_rows(&vec![
-                    vec![false, true, true],
-                    vec![true, true, false]
-                ]),
+                layout: Array2D::from_rows(&vec![vec![false, true, true], vec![true, true, false]]),
                 color: 5,
-                rotation: Rotation::Zero
+                rotation: Rotation::Zero,
             },
             Tetromino::J => Piece {
                 layout: Array2D::from_rows(&vec![
                     vec![false, true],
                     vec![false, true],
-                    vec![true, true]
+                    vec![true, true],
                 ]),
                 color: 13,
-                rotation: Rotation::Zero
+                rotation: Rotation::Zero,
             },
             Tetromino::L => Piece {
                 layout: Array2D::from_rows(&vec![
                     vec![true, false],
                     vec![true, false],
-                    vec![true, true]
+                    vec![true, true],
                 ]),
                 color: 21,
-                rotation: Rotation::Zero
+                rotation: Rotation::Zero,
             },
             Tetromino::I => Piece {
-                layout: Array2D::from_rows(&vec![
-                    vec![true],
-                    vec![true],
-                    vec![true],
-                    vec![true]
-                ]),
+                layout: Array2D::from_rows(&vec![vec![true], vec![true], vec![true], vec![true]]),
                 color: 3,
-                rotation: Rotation::Zero
+                rotation: Rotation::Zero,
             },
             Tetromino::T => Piece {
-                layout: Array2D::from_rows(&vec![
-                    vec![true, true, true],
-                    vec![false, true, false]
-                ]),
+                layout: Array2D::from_rows(&vec![vec![true, true, true], vec![false, true, false]]),
                 color: 37,
-                rotation: Rotation::Zero
+                rotation: Rotation::Zero,
             },
             Tetromino::Z => Piece {
-                layout: Array2D::from_rows(&vec![
-                    vec![true, true, false],
-                    vec![false, true, true]
-                ]),
+                layout: Array2D::from_rows(&vec![vec![true, true, false], vec![false, true, true]]),
                 color: 45,
-                rotation: Rotation::Zero
+                rotation: Rotation::Zero,
             },
             Tetromino::O => Piece {
-                layout: Array2D::from_rows(&vec![
-                    vec![true, true],
-                    vec![true, true]
-                ]),
+                layout: Array2D::from_rows(&vec![vec![true, true], vec![true, true]]),
                 color: 53,
-                rotation: Rotation::Zero
-            }
+                rotation: Rotation::Zero,
+            },
         }
     }
     /// Rotates a piece to the left
@@ -114,7 +108,7 @@ impl Piece {
             Rotation::Zero => Rotation::HalfPi,
             Rotation::HalfPi => Rotation::Pi,
             Rotation::Pi => Rotation::OneHalfPi,
-            Rotation::OneHalfPi => Rotation::Zero
+            Rotation::OneHalfPi => Rotation::Zero,
         }
     }
     /// Rotates a piece to the right
@@ -123,7 +117,7 @@ impl Piece {
             Rotation::Zero => Rotation::OneHalfPi,
             Rotation::HalfPi => Rotation::Zero,
             Rotation::Pi => Rotation::HalfPi,
-            Rotation::OneHalfPi => Rotation::Pi
+            Rotation::OneHalfPi => Rotation::Pi,
         }
     }
     /// Returns a left-rotated version of the piece
@@ -144,7 +138,7 @@ impl Piece {
                 let mut columns = self.layout.as_columns();
                 columns.reverse();
                 Array2D::from_rows(&columns)
-            },
+            }
             Rotation::Pi => {
                 let mut layout = self.layout.as_row_major();
                 layout.reverse();
@@ -154,21 +148,21 @@ impl Piece {
                 let mut rows = self.layout.as_rows();
                 rows.reverse();
                 Array2D::from_columns(&rows)
-            },
+            }
         }
     }
 }
 
 #[derive(Debug)]
 pub struct Board {
-    matrix: Array2D<u8>
+    matrix: Array2D<u8>,
 }
 
 impl Board {
     /// Returns a new, empty board
     pub fn new() -> Board {
         Board {
-            matrix: Array2D::filled_with(0, 8, 8)
+            matrix: Array2D::filled_with(0, 8, 8),
         }
     }
     fn place_impl(&self, piece: &Piece, x: usize, y: usize) -> Array2D<u8> {
@@ -177,8 +171,10 @@ impl Board {
         for iy in (0..render.num_rows()).rev() {
             for ix in 0..render.num_columns() {
                 match render.get(render.num_rows().saturating_sub(1) - iy, ix) {
-                    Some(true) => {new_matrix.set(y + iy, x + ix, piece.color).ok();},
-                    _ => ()
+                    Some(true) => {
+                        new_matrix.set(y + iy, x + ix, piece.color).ok();
+                    }
+                    _ => (),
                 };
             }
         }
@@ -214,7 +210,7 @@ impl Board {
             match self.matrix.get(iy, x) {
                 Some(0) => (),
                 None => (),
-                Some(_) => return (iy + 1).try_into().unwrap()
+                Some(_) => return (iy + 1).try_into().unwrap(),
             }
         }
         0
@@ -223,7 +219,7 @@ impl Board {
     pub fn finished(&self) -> bool {
         for ix in 0..8 {
             if self.column_height(ix) == 8 {
-                return true
+                return true;
             }
         }
         false
@@ -239,10 +235,18 @@ impl Board {
                 for ix in 0..render.num_columns() {
                     if y + iy >= 8 || (x + ix) >= 8 {
                         continue;
-                    } else if *render.get(render.num_rows().saturating_sub(iy + 1), ix).unwrap() && *self.matrix.get(y + iy, x + ix).unwrap() > 0 {
-                        println!("Collision at ({}, {}), ({}, {})", y+iy, x+ix, iy, ix);
-                        println!("Block Value: {:?}. Matrix Value: {}.", render.as_rows(), *self.matrix.get(y + iy, x + ix).unwrap());
-                        return CollisionResult::Collides
+                    } else if *render
+                        .get(render.num_rows().saturating_sub(iy + 1), ix)
+                        .unwrap()
+                        && *self.matrix.get(y + iy, x + ix).unwrap() > 0
+                    {
+                        println!("Collision at ({}, {}), ({}, {})", y + iy, x + ix, iy, ix);
+                        println!(
+                            "Block Value: {:?}. Matrix Value: {}.",
+                            render.as_rows(),
+                            *self.matrix.get(y + iy, x + ix).unwrap()
+                        );
+                        return CollisionResult::Collides;
                     }
                 }
             }
@@ -259,19 +263,19 @@ impl Board {
                 for i in 0..piece.render().num_columns() {
                     match self.collides(&piece, x.saturating_sub(i) as usize, y as usize) {
                         CollisionResult::Unobstructed => return Some((x.saturating_sub(i), y)),
-                        _ => ()
+                        _ => (),
                     };
                 }
                 None
-            },
+            }
             CollisionResult::Collides => {
                 match self.collides(&piece, x.saturating_add(1) as usize, y as usize) {
                     CollisionResult::Unobstructed => return Some((x.saturating_sub(1), y)),
-                    _ => ()
+                    _ => (),
                 };
                 match self.collides(&piece, x.saturating_sub(1) as usize, y as usize) {
                     CollisionResult::Unobstructed => return Some((x.saturating_sub(1), y)),
-                    _ => ()
+                    _ => (),
                 };
                 None
             }
@@ -282,30 +286,16 @@ impl Board {
 #[cfg(test)]
 mod tests {
     fn zero() -> Vec<Vec<bool>> {
-		vec![
-            vec![false, true],
-            vec![false, true],
-            vec![true, true]
-        ]
+        vec![vec![false, true], vec![false, true], vec![true, true]]
     }
     fn half_pi() -> Vec<Vec<bool>> {
-		vec![
-            vec![true, true, true],
-            vec![false, false, true]
-        ]
+        vec![vec![true, true, true], vec![false, false, true]]
     }
     fn pi() -> Vec<Vec<bool>> {
-		vec![
-            vec![true, true],
-            vec![true, false],
-            vec![true, false]
-        ]
+        vec![vec![true, true], vec![true, false], vec![true, false]]
     }
     fn one_half_pi() -> Vec<Vec<bool>> {
-        vec![
-            vec![true, false, false],
-            vec![true, true, true]
-        ]
+        vec![vec![true, false, false], vec![true, true, true]]
     }
     #[test]
     fn rotations() {
@@ -397,8 +387,20 @@ mod tests {
     #[test]
     fn clear_floating_row() {
         let mut board = super::Board::new();
-        board.place(&super::Piece::new(super::Tetromino::L).rotated_left().rotated_left(), 6, 0);
-        board.place(&super::Piece::new(super::Tetromino::J).rotated_left().rotated_left(), 0, 0);
+        board.place(
+            &super::Piece::new(super::Tetromino::L)
+                .rotated_left()
+                .rotated_left(),
+            6,
+            0,
+        );
+        board.place(
+            &super::Piece::new(super::Tetromino::J)
+                .rotated_left()
+                .rotated_left(),
+            0,
+            0,
+        );
         board.place(&super::Piece::new(super::Tetromino::I).rotated_left(), 2, 2);
         assert_eq!(board.column_height(0), 3);
         assert_eq!(board.column_height(1), 3);
@@ -426,20 +428,47 @@ mod tests {
     fn collide_hbound() {
         let board = super::Board::new();
         let piece = super::Piece::new(super::Tetromino::I).rotated_left();
-        assert_eq!(board.collides(&piece, 4, 4), super::CollisionResult::Unobstructed);
-        assert_eq!(board.collides(&piece, 5, 4), super::CollisionResult::CollidesHBound);
+        assert_eq!(
+            board.collides(&piece, 4, 4),
+            super::CollisionResult::Unobstructed
+        );
+        assert_eq!(
+            board.collides(&piece, 5, 4),
+            super::CollisionResult::CollidesHBound
+        );
     }
     #[test]
     fn collide_roof() {
         let board = super::Board::new();
         let mut piece = super::Piece::new(super::Tetromino::I).rotated_left();
-        assert_eq!(board.collides(&piece, 2, 7), super::CollisionResult::Unobstructed);
-        assert_eq!(board.collides(&piece, 2, 8), super::CollisionResult::Unobstructed);
+        assert_eq!(
+            board.collides(&piece, 2, 7),
+            super::CollisionResult::Unobstructed
+        );
+        assert_eq!(
+            board.collides(&piece, 2, 8),
+            super::CollisionResult::Unobstructed
+        );
         piece.rotate_left();
-        assert_eq!(board.collides(&piece, 2, 7), super::CollisionResult::Unobstructed);
-        assert_eq!(board.collides(&piece, 2, 8), super::CollisionResult::Unobstructed);
-        assert_eq!(board.collides(&piece, 2, 9), super::CollisionResult::Unobstructed);
-        assert_eq!(board.collides(&piece, 2, 10), super::CollisionResult::Unobstructed);
-        assert_eq!(board.collides(&piece, 2, 11), super::CollisionResult::Unobstructed);
+        assert_eq!(
+            board.collides(&piece, 2, 7),
+            super::CollisionResult::Unobstructed
+        );
+        assert_eq!(
+            board.collides(&piece, 2, 8),
+            super::CollisionResult::Unobstructed
+        );
+        assert_eq!(
+            board.collides(&piece, 2, 9),
+            super::CollisionResult::Unobstructed
+        );
+        assert_eq!(
+            board.collides(&piece, 2, 10),
+            super::CollisionResult::Unobstructed
+        );
+        assert_eq!(
+            board.collides(&piece, 2, 11),
+            super::CollisionResult::Unobstructed
+        );
     }
 }

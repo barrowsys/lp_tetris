@@ -1,10 +1,10 @@
+use array2d::Array2D;
+use lp_tetris::{ControlEvent, Launchpad};
 use std::thread::sleep;
 use std::time::Duration;
-use array2d::Array2D;
-use lp_tetris::{Launchpad, ControlEvent};
 mod tetris;
+use rand::Rng;
 use tetris::CollisionResult;
-use rand::{Rng};
 
 #[allow(unused)]
 fn run_color(lp: &mut Launchpad, c: u8) {
@@ -35,13 +35,16 @@ fn main() {
     let mut lp = Launchpad::new();
     println!("Connection open!!");
     lp.clear();
-    'gameloop: loop{
+    'gameloop: loop {
         sleep(Duration::from_millis(4));
         tick += 1;
         lp.send_matrix(board.shadow(&current_piece, pos_x, pos_y));
         let tickrate = match 255u8.checked_sub(speed) {
             Some(tr) => tr,
-            None => panic!("255u8 - {} is, out of bounds? this shouldn't happen, speed is a u8", speed),
+            None => panic!(
+                "255u8 - {} is, out of bounds? this shouldn't happen, speed is a u8",
+                speed
+            ),
         };
         if tick % tickrate as u32 == 0 || drop_down {
             if pos_y == 0 {
@@ -57,7 +60,7 @@ fn main() {
                     // },
                     CollisionResult::Unobstructed => {
                         pos_y = pos_y.saturating_sub(1);
-                    },
+                    }
                     _ => {
                         board.place(&current_piece, pos_x, pos_y);
                         current_piece = tetris::Piece::new(rng.gen());
@@ -78,14 +81,14 @@ fn main() {
                     match board.collides(&current_piece, pos_x.saturating_sub(1), pos_y) {
                         CollisionResult::Unobstructed => pos_x = pos_x.saturating_sub(1),
                         // CollisionResult::AboveRoof => pos_x = pos_x.saturating_sub(1),
-                        _ => ()
+                        _ => (),
                     }
                 }
                 ControlEvent::MoveRight => {
                     match board.collides(&current_piece, pos_x.saturating_add(1), pos_y) {
                         CollisionResult::Unobstructed => pos_x = pos_x.saturating_add(1),
                         // CollisionResult::AboveRoof => pos_x = pos_x.saturating_add(1),
-                        _ => ()
+                        _ => (),
                     }
                 }
                 ControlEvent::RotateLeft => {
@@ -96,7 +99,7 @@ fn main() {
                     } else {
                         current_piece.rotate_right();
                     }
-                },
+                }
                 ControlEvent::RotateRight => {
                     current_piece.rotate_right();
                     if let Some((new_x, new_y)) = board.try_rotation(&current_piece, pos_x, pos_y) {
@@ -105,13 +108,15 @@ fn main() {
                     } else {
                         current_piece.rotate_left();
                     }
-                },
-                ControlEvent::DropBlock => {drop_down = true;},
+                }
+                ControlEvent::DropBlock => {
+                    drop_down = true;
+                }
                 ControlEvent::SpeedChange(s) => speed = s,
                 ControlEvent::ExitGame => break 'gameloop,
                 // ControlEvent::MoveUp => pos_y = pos_y.saturating_add(1),
                 // ControlEvent::MoveDown => pos_y = pos_y.saturating_sub(1)
-                _ => ()
+                _ => (),
             }
         }
     }
