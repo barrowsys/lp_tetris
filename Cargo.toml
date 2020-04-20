@@ -1,6 +1,6 @@
 [package]
 name = "lp_tetris"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["Ezra Barrow <barrow@tilde.team>"]
 edition = "2018"
 license-file = "LICENSE"
